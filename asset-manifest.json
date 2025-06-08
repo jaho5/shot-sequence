@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.css": "/your-repo-name/static/css/main.148611a5.css",
-    "main.js": "/your-repo-name/static/js/main.811ef196.js",
-    "index.html": "/your-repo-name/index.html",
-    "main.148611a5.css.map": "/your-repo-name/static/css/main.148611a5.css.map",
-    "main.811ef196.js.map": "/your-repo-name/static/js/main.811ef196.js.map"
+    "main.css": "/shot-sequence/static/css/main.148611a5.css",
+    "main.js": "/shot-sequence/static/js/main.811ef196.js",
+    "index.html": "/shot-sequence/index.html",
+    "main.148611a5.css.map": "/shot-sequence/static/css/main.148611a5.css.map",
+    "main.811ef196.js.map": "/shot-sequence/static/js/main.811ef196.js.map"
   },
   "entrypoints": [
     "static/css/main.148611a5.css",
