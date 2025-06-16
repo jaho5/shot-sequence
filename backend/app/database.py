@@ -1,41 +1,72 @@
-import sqlite3
 import json
 import uuid
+import os
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-import os
+# Check if we should use PostgreSQL (for production) or SQLite (for development)
+DATABASE_URL = os.getenv("DATABASE_URL")
+USE_POSTGRES = DATABASE_URL is not None
 
-# Ensure data directory exists for production
-DATA_DIR = os.getenv("DATA_DIR", ".")
-os.makedirs(DATA_DIR, exist_ok=True)
-DATABASE_PATH = os.path.join(DATA_DIR, "sequences.db")
+if USE_POSTGRES:
+    import psycopg2
+    import psycopg2.extras
+else:
+    import sqlite3
+    # Ensure data directory exists for SQLite
+    DATA_DIR = os.getenv("DATA_DIR", ".")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    DATABASE_PATH = os.path.join(DATA_DIR, "sequences.db")
 
 def init_database():
     """Initialize the database with required tables."""
-    conn = sqlite3.connect(DATABASE_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sequences (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            shots TEXT NOT NULL,
-            settings TEXT,
-            metadata TEXT,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sequences (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                shots TEXT NOT NULL,
+                settings TEXT,
+                metadata TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
+    else:
+        conn = sqlite3.connect(DATABASE_PATH)
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS sequences (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                shots TEXT NOT NULL,
+                settings TEXT,
+                metadata TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        conn.commit()
+        conn.close()
 
 def get_db_connection():
     """Get a database connection with row factory."""
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if USE_POSTGRES:
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        return conn
+    else:
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
 
 class SequenceDB:
     @staticmethod
@@ -52,18 +83,32 @@ class SequenceDB:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("""
-            INSERT INTO sequences (id, name, shots, settings, metadata, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            sequence_id,
-            name,
-            json.dumps(shots),
-            json.dumps(settings) if settings else None,
-            json.dumps(metadata),
-            now,
-            now
-        ))
+        if USE_POSTGRES:
+            cursor.execute("""
+                INSERT INTO sequences (id, name, shots, settings, metadata, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                sequence_id,
+                name,
+                json.dumps(shots),
+                json.dumps(settings) if settings else None,
+                json.dumps(metadata),
+                now,
+                now
+            ))
+        else:
+            cursor.execute("""
+                INSERT INTO sequences (id, name, shots, settings, metadata, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                sequence_id,
+                name,
+                json.dumps(shots),
+                json.dumps(settings) if settings else None,
+                json.dumps(metadata),
+                now,
+                now
+            ))
         
         conn.commit()
         conn.close()
@@ -76,7 +121,10 @@ class SequenceDB:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("SELECT * FROM sequences WHERE id = ?", (sequence_id,))
+        if USE_POSTGRES:
+            cursor.execute("SELECT * FROM sequences WHERE id = %s", (sequence_id,))
+        else:
+            cursor.execute("SELECT * FROM sequences WHERE id = ?", (sequence_id,))
         row = cursor.fetchone()
         conn.close()
         
@@ -141,7 +189,10 @@ class SequenceDB:
         cursor = conn.cursor()
         
         # First check if sequence exists and get current metadata
-        cursor.execute("SELECT metadata FROM sequences WHERE id = ?", (sequence_id,))
+        if USE_POSTGRES:
+            cursor.execute("SELECT metadata FROM sequences WHERE id = %s", (sequence_id,))
+        else:
+            cursor.execute("SELECT metadata FROM sequences WHERE id = ?", (sequence_id,))
         existing_row = cursor.fetchone()
         if not existing_row:
             conn.close()
@@ -167,7 +218,10 @@ class SequenceDB:
             created_at = existing_metadata.get("createdAt")
             if created_at is None:
                 # Get the created_at from the database row
-                cursor.execute("SELECT created_at FROM sequences WHERE id = ?", (sequence_id,))
+                if USE_POSTGRES:
+                    cursor.execute("SELECT created_at FROM sequences WHERE id = %s", (sequence_id,))
+                else:
+                    cursor.execute("SELECT created_at FROM sequences WHERE id = ?", (sequence_id,))
                 db_row = cursor.fetchone()
                 created_at = db_row["created_at"] if db_row else now
             
@@ -185,11 +239,20 @@ class SequenceDB:
         
         params.append(sequence_id)
         
-        cursor.execute(f"""
-            UPDATE sequences 
-            SET {', '.join(updates)}
-            WHERE id = ?
-        """, params)
+        if USE_POSTGRES:
+            # Convert ? placeholders to %s for PostgreSQL
+            placeholders = ', '.join([update.replace('?', '%s') for update in updates])
+            cursor.execute(f"""
+                UPDATE sequences 
+                SET {placeholders}
+                WHERE id = %s
+            """, params)
+        else:
+            cursor.execute(f"""
+                UPDATE sequences 
+                SET {', '.join(updates)}
+                WHERE id = ?
+            """, params)
         
         conn.commit()
         conn.close()
@@ -202,7 +265,10 @@ class SequenceDB:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        cursor.execute("DELETE FROM sequences WHERE id = ?", (sequence_id,))
+        if USE_POSTGRES:
+            cursor.execute("DELETE FROM sequences WHERE id = %s", (sequence_id,))
+        else:
+            cursor.execute("DELETE FROM sequences WHERE id = ?", (sequence_id,))
         deleted = cursor.rowcount > 0
         
         conn.commit()
