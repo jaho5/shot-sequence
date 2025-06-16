@@ -5,15 +5,15 @@ const ShotList = ({ shots, onDeleteShot }) => {
   if (shots.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500 text-lg">No shots generated yet</p>
-        <p className="text-gray-400 text-sm mt-2">Generate some shots to see them here</p>
+        <p className="text-gray-500 text-lg">No shots in sequence</p>
+        <p className="text-gray-400 text-sm mt-2">Generate shots or click the grid to create your sequence</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <h3 className="text-lg font-semibold mb-4">Shot Sequence ({shots.length} shots)</h3>
+      <h3 className="text-lg font-semibold mb-4">Training Sequence ({shots.length} shots)</h3>
       <div className="space-y-2">
         {shots.map((shot, index) => (
           <div

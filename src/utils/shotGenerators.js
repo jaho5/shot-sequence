@@ -125,4 +125,30 @@ export const generateShotSequenceWithDistance = (numShots, minDistance = 0, maxD
   return null;
 };
 
-export { HORIZONTAL_POSITIONS, DEPTH_POSITIONS, calculateDistance, getContinuousCoordinates };
+export const createCustomShot = (horizontal, depth, space) => ({
+  horizontal,
+  depth,
+  space
+});
+
+export const validateShotWithDistance = (newShot, previousShot, minDistance = 0, maxDistance = Infinity) => {
+  if (!previousShot) return true;
+  
+  const distance = calculateDistance(previousShot, newShot);
+  return distance >= minDistance && distance <= maxDistance;
+};
+
+export const validateSequence = (shots, minDistance = 0, maxDistance = Infinity) => {
+  for (let i = 1; i < shots.length; i++) {
+    if (!validateShotWithDistance(shots[i], shots[i - 1], minDistance, maxDistance)) {
+      return {
+        valid: false,
+        errorIndex: i,
+        message: `Shot ${i + 1} violates distance constraints with shot ${i}`
+      };
+    }
+  }
+  return { valid: true };
+};
+
+export { HORIZONTAL_POSITIONS, DEPTH_POSITIONS, calculateDistance, getContinuousCoordinates, getValidShotsWithinDistance };
