@@ -60,9 +60,19 @@ def init_database():
 def get_db_connection():
     """Get a database connection with row factory."""
     if USE_POSTGRES:
-        conn = psycopg2.connect(DATABASE_URL)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
-        return conn
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            conn.cursor_factory = psycopg2.extras.RealDictCursor
+            return conn
+        except Exception as e:
+            print(f"PostgreSQL connection failed: {e}")
+            print("Falling back to SQLite")
+            # Fall back to SQLite if PostgreSQL fails
+            global USE_POSTGRES
+            USE_POSTGRES = False
+            conn = sqlite3.connect(DATABASE_PATH)
+            conn.row_factory = sqlite3.Row
+            return conn
     else:
         conn = sqlite3.connect(DATABASE_PATH)
         conn.row_factory = sqlite3.Row

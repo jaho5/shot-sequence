@@ -5,7 +5,11 @@ from .database import init_database
 from .routes import router
 
 # Initialize database on startup
-init_database()
+try:
+    init_database()
+except Exception as e:
+    print(f"Database initialization failed: {e}")
+    print("Will retry database connection on first request")
 
 app = FastAPI(
     title="Shot Sequence API",
