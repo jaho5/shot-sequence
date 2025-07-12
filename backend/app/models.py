@@ -44,3 +44,15 @@ class SequenceListItem(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+
+class AIGenerationRequest(BaseModel):
+    sport: str = Field(..., description="Sport type (badminton, tennis, volleyball, table_tennis, pickleball)")
+    purpose: str = Field(..., min_length=1, max_length=500, description="Training objective or purpose")
+    numShots: int = Field(..., ge=1, le=100, description="Number of shots to generate")
+    minDistance: Optional[float] = Field(None, ge=0, description="Minimum distance between consecutive shots")
+    maxDistance: Optional[float] = Field(None, ge=0, description="Maximum distance between consecutive shots")
+
+class AIGenerationResponse(BaseModel):
+    shots: List[Shot] = Field(..., description="Generated shot sequence")
+    sport: str = Field(..., description="Sport type used for generation")
+    purpose: str = Field(..., description="Training objective used")

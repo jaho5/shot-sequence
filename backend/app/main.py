@@ -1,8 +1,12 @@
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .database import init_database
 from .routes import router
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize database on startup
 try:

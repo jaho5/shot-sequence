@@ -5,9 +5,12 @@ from .models import (
     SequenceUpdate, 
     SequenceResponse, 
     SequenceListItem,
-    ErrorResponse
+    ErrorResponse,
+    AIGenerationRequest,
+    AIGenerationResponse
 )
 from .database import SequenceDB
+from .ai_service import get_ai_service, AIGenerationError
 
 router = APIRouter(prefix="/api", tags=["sequences"])
 
@@ -105,6 +108,50 @@ async def delete_sequence(sequence_id: str):
             raise HTTPException(status_code=404, detail="Sequence not found")
         
         return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/sequences/generate-ai", response_model=AIGenerationResponse)
+async def generate_ai_sequence(request: AIGenerationRequest):
+    """Generate a shot sequence using AI based on sport and training purpose."""
+    try:
+        # Validate sport
+        valid_sports = ["badminton", "tennis", "volleyball", "table_tennis", "pickleball"]
+        if request.sport.lower() not in valid_sports:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Invalid sport. Must be one of: {', '.join(valid_sports)}"
+            )
+        
+        # Generate sequence using AI service
+        try:
+            ai_service = get_ai_service()
+        except ValueError as e:
+            if "ANTHROPIC_API_KEY" in str(e):
+                raise HTTPException(
+                    status_code=500, 
+                    detail="AI service not configured: ANTHROPIC_API_KEY environment variable is required"
+                )
+            raise HTTPException(status_code=500, detail=f"AI service initialization failed: {str(e)}")
+        
+        shots = await ai_service.generate_sequence(
+            sport=request.sport.lower(),
+            purpose=request.purpose,
+            num_shots=request.numShots,
+            min_distance=request.minDistance,
+            max_distance=request.maxDistance
+        )
+        
+        return AIGenerationResponse(
+            shots=shots,
+            sport=request.sport.lower(),
+            purpose=request.purpose
+        )
+        
+    except AIGenerationError as e:
+        raise HTTPException(status_code=400, detail=f"AI generation failed: {str(e)}")
     except HTTPException:
         raise
     except Exception as e:
