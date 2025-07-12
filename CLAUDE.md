@@ -16,7 +16,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend Setup
 - `cd backend && python -m venv .venv` - Create virtual environment
 - `source .venv/bin/activate` (Linux/Mac) or `.venv\Scripts\activate` (Windows) - Activate venv
-- `pip install -r requirements.txt` - Install backend dependencies
+- `uv pip install -r requirements.txt` - Install backend dependencies (prefer uv over pip)
+
+### Production Deployment
+- `npm run build:prod` - Build with production API URL (Render)
+- `npm run deploy:prod` - Build and deploy to GitHub Pages with production API
 
 ### Linting & Quality
 - Tests use Jest/React Testing Library (via react-scripts)
@@ -33,10 +37,12 @@ This is a full-stack React application for generating sports shot sequences that
 - **UI Components** (`src/components/ui/`) - Reusable Button and Input components
 
 ### Backend Architecture
-- **FastAPI** backend (`backend/app/`) with SQLite database for sequence persistence
+- **FastAPI** backend (`backend/app/`) with database support for sequence persistence
+- **Database**: SQLite for local development, PostgreSQL (Supabase) for production
 - **CORS** configured for localhost:3000 (dev) and GitHub Pages (prod)
 - **REST API** endpoints: GET/POST/PUT/DELETE for sequence management
 - **Database models** for shot sequences with metadata and settings
+- **Error handling**: Connection fallback and retry logic for database operations
 
 ### Shot Generation Logic
 The core algorithm in `src/utils/shotGenerators.js` provides two generation modes:
