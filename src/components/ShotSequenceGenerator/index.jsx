@@ -22,6 +22,11 @@ const ShotSequenceGenerator = () => {
   const [currentSequenceId, setCurrentSequenceId] = useState(null);
   const [currentSequenceName, setCurrentSequenceName] = useState('');
   const [backendAvailable, setBackendAvailable] = useState(null); // null = unknown, true/false = checked
+  
+  // AI Generation state
+  const [aiSport, setAiSport] = useState('badminton');
+  const [aiPurpose, setAiPurpose] = useState('');
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Check backend availability on component mount
   useEffect(() => {
@@ -233,6 +238,73 @@ const ShotSequenceGenerator = () => {
     setError('');
   };
 
+  const handleAIGenerate = async () => {
+    setError('');
+    
+    if (!numShots || numShots < 1) {
+      setError('Please enter a valid number of shots (minimum 1)');
+      return;
+    }
+    
+    if (numShots > 100) {
+      setError('Maximum 100 shots allowed');
+      return;
+    }
+
+    if (!aiPurpose.trim()) {
+      setError('Please enter a training purpose/goal for AI generation');
+      return;
+    }
+
+    const hasDistanceConstraints = minDistance !== '' || maxDistance !== '';
+    let min = null;
+    let max = null;
+
+    if (hasDistanceConstraints) {
+      min = minDistance === '' ? null : parseFloat(minDistance);
+      max = maxDistance === '' ? null : parseFloat(maxDistance);
+      
+      if ((min !== null && min < 0) || (max !== null && max < 0)) {
+        setError('Distance values must be non-negative');
+        return;
+      }
+      
+      if (min !== null && max !== null && min > max) {
+        setError('Minimum distance cannot be greater than maximum distance');
+        return;
+      }
+    }
+
+    setAiGenerating(true);
+
+    try {
+      const aiRequest = {
+        sport: aiSport,
+        purpose: aiPurpose.trim(),
+        numShots: parseInt(numShots),
+        minDistance: min,
+        maxDistance: max
+      };
+
+      const response = await sequenceApi.generateAISequence(aiRequest);
+      
+      // Determine starting space based on existing shots
+      const startingSpace = shots.length === 0 ? 1 : (shots[shots.length - 1].space === 1 ? 2 : 1);
+      
+      // Adjust the generated shots to start from the correct space
+      const adjustedShots = response.shots.map((shot, index) => ({
+        ...shot,
+        space: (index % 2) === 0 ? startingSpace : (startingSpace === 1 ? 2 : 1)
+      }));
+
+      setShots([...shots, ...adjustedShots]);
+    } catch (err) {
+      setError(err.message || 'Failed to generate AI sequence');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 py-6 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -354,6 +426,44 @@ const ShotSequenceGenerator = () => {
               >
                 Generate Shots
               </Button>
+            </div>
+            
+            {/* AI Generation Section */}
+            <div className="border-t border-gray-200 pt-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">AI-Powered Generation</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Sport</label>
+                  <select
+                    value={aiSport}
+                    onChange={(e) => setAiSport(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="badminton">Badminton</option>
+                    <option value="tennis">Tennis</option>
+                    <option value="volleyball">Volleyball</option>
+                    <option value="table_tennis">Table Tennis</option>
+                    <option value="pickleball">Pickleball</option>
+                  </select>
+                </div>
+                <div>
+                  <Input
+                    label="Training Purpose/Goal"
+                    type="text"
+                    value={aiPurpose}
+                    onChange={(e) => setAiPurpose(e.target.value)}
+                    placeholder="e.g., attacking patterns, defense drills"
+                  />
+                </div>
+                <Button
+                  onClick={handleAIGenerate}
+                  size="lg"
+                  className="w-full"
+                  disabled={aiGenerating || backendAvailable === false}
+                >
+                  {aiGenerating ? 'Generating...' : 'AI Generate'}
+                </Button>
+              </div>
             </div>
             
             

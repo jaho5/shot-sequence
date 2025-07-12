@@ -82,6 +82,21 @@ export const sequenceApi = {
     });
     return handleResponse(response);
   },
+
+  // Generate AI sequence
+  async generateAISequence(aiRequest) {
+    if (!(await isBackendAvailable())) {
+      throw new ApiError('Backend service is not available', 503);
+    }
+    const response = await fetch(`${API_BASE_URL}/api/sequences/generate-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(aiRequest),
+    });
+    return handleResponse(response);
+  },
 };
 
 export { ApiError };
